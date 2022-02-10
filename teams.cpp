@@ -31,6 +31,10 @@ void callManyCalcCollatzX(std::vector<InfInt> &tasks,
     }
 }
 
+uint64_t calcCollatzX(const InfInt &n, std::shared_ptr<SharedResults> sharedResults) {
+    return sharedResults->getResult(n);
+}
+
 ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
 {
     ContestResult r;
@@ -119,20 +123,23 @@ ContestResult TeamPool::runContest(ContestInput const & contestInput)
 {
     ContestResult r;
     r.resize(contestInput.size());
+    std::vector<std::future<uint64_t>> futures(contestInput.size());
+    size_t idx = 0;
 
     if (this->getSharedResults()) {
-        //TODO
+        for (const InfInt &singleInput : contestInput) {
+            futures[idx] = this->pool.push(calcCollatzX, singleInput, this->getSharedResults());
+            idx++;
+        }
     } else {
-        std::vector<std::future<uint64_t>> futures(contestInput.size());
-        size_t idx = 0;
         for (const InfInt &singleInput : contestInput) {
             futures[idx] = this->pool.push(calcCollatz, singleInput);
             idx++;
         }
+    }
 
-        for (idx = 0; idx < contestInput.size(); ++idx) {
-            r[idx] = futures[idx].get();
-        }
+    for (idx = 0; idx < contestInput.size(); ++idx) {
+        r[idx] = futures[idx].get();
     }
 
     return r;
