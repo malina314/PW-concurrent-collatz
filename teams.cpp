@@ -29,10 +29,10 @@ ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
     r.resize(contestInput.size());
     uint64_t idx = 0;
     auto size = this->getSize();
+    std::vector<std::thread> threads(size);
+    size_t thread_idx = 0;
 
     if (this->getSharedResults()) {
-        std::vector<std::thread> threads(size);
-        size_t thread_idx = 0;
         for (const InfInt &singleInput : contestInput) {
             if (threads[thread_idx].joinable()) {
                 threads[thread_idx].join();
@@ -44,15 +44,7 @@ ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
             idx++;
             thread_idx = (thread_idx + 1) % size;
         }
-
-        for (auto &t : threads) {
-            if (t.joinable()) {
-                t.join();
-            }
-        }
     } else {
-        std::vector<std::thread> threads(size);
-        size_t thread_idx = 0;
         for (const InfInt &singleInput : contestInput) {
             if (threads[thread_idx].joinable()) {
                 threads[thread_idx].join();
@@ -61,11 +53,11 @@ ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
             idx++;
             thread_idx = (thread_idx + 1) % size;
         }
+    }
 
-        for (auto &t : threads) {
-            if (t.joinable()) {
-                t.join();
-            }
+    for (auto &t : threads) {
+        if (t.joinable()) {
+            t.join();
         }
     }
 
