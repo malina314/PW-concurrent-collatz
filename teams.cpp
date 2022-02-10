@@ -7,8 +7,14 @@
 #include "contest.hpp"
 #include "collatz.hpp"
 
+#include "lib/infint/InfInt.h"
+
 void callCalcCollatz(const InfInt &n, uint64_t &res) {
     res = calcCollatz(n);
+}
+
+void callCalcCollatzX(const InfInt &n, uint64_t &res, std::shared_ptr<SharedResults> sharedResults) {
+    res = sharedResults->getResult(n);
 }
 
 void callManyCalcCollatz(std::vector<InfInt> &tasks, std::vector<uint64_t> &res) {
@@ -25,7 +31,25 @@ ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
     auto size = this->getSize();
 
     if (this->getSharedResults()) {
-        //TODO
+        std::vector<std::thread> threads(size);
+        size_t thread_idx = 0;
+        for (const InfInt &singleInput : contestInput) {
+            if (threads[thread_idx].joinable()) {
+                threads[thread_idx].join();
+            }
+            threads[thread_idx] = this->createThread(callCalcCollatzX,
+                                                     singleInput,
+                                                     std::ref(r[idx]),
+                                                     this->getSharedResults());
+            idx++;
+            thread_idx = (thread_idx + 1) % size;
+        }
+
+        for (auto &t : threads) {
+            if (t.joinable()) {
+                t.join();
+            }
+        }
     } else {
         std::vector<std::thread> threads(size);
         size_t thread_idx = 0;
