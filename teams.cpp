@@ -23,6 +23,14 @@ void callManyCalcCollatz(std::vector<InfInt> &tasks, std::vector<uint64_t> &res)
     }
 }
 
+void callManyCalcCollatzX(std::vector<InfInt> &tasks,
+                          std::vector<uint64_t> &res,
+                          std::shared_ptr<SharedResults> sharedResults) {
+    for (int i = 0; i < tasks.size(); ++i) {
+        res[i] = sharedResults->getResult(tasks[i]);
+    }
+}
+
 ContestResult TeamNewThreads::runContestImpl(ContestInput const & contestInput)
 {
     ContestResult r;
@@ -69,34 +77,39 @@ ContestResult TeamConstThreads::runContestImpl(ContestInput const & contestInput
     ContestResult r;
     r.resize(contestInput.size());
     auto size = this->getSize();
+    std::vector<std::thread> threads(size);
+    std::vector<std::vector<InfInt>> tasks_for_threads(size);
+    std::vector<std::vector<uint64_t>> results(size);
+    size_t tasks_idx = 0;
+
+    for (const InfInt &singleInput : contestInput) {
+        tasks_for_threads[tasks_idx % size].push_back(std::ref(singleInput));
+        tasks_idx++;
+    }
 
     if (this->getSharedResults()) {
-        //TODO
-    } else {
-        std::vector<std::thread> threads(size);
-        std::vector<std::vector<InfInt>> tasks_for_threads(size);
-        std::vector<std::vector<uint64_t>> results(size);
-        size_t tasks_idx = 0;
-
-        for (const InfInt &singleInput : contestInput) {
-            tasks_for_threads[tasks_idx % size].push_back(std::ref(singleInput));
-            tasks_idx++;
+        for (int i = 0; i < size; ++i) {
+            results[i].resize(tasks_for_threads[i].size());
+            threads[i] = this->createThread(callManyCalcCollatzX,
+                                            std::ref(tasks_for_threads[i]),
+                                            std::ref(results[i]),
+                                            this->getSharedResults());
         }
-
+    } else {
         for (int i = 0; i < size; ++i) {
             results[i].resize(tasks_for_threads[i].size());
             threads[i] = this->createThread(callManyCalcCollatz,
                                             std::ref(tasks_for_threads[i]),
                                             std::ref(results[i]));
         }
+    }
 
-        for (auto &t : threads) {
-            t.join();
-        }
+    for (auto &t : threads) {
+        t.join();
+    }
 
-        for (int i = 0; i < contestInput.size(); ++i) {
-            r[i] = results[i % size][i / size];
-        }
+    for (int i = 0; i < contestInput.size(); ++i) {
+        r[i] = results[i % size][i / size];
     }
 
     return r;
