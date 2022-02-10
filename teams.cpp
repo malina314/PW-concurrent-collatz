@@ -89,7 +89,23 @@ ContestResult TeamConstThreads::runContestImpl(ContestInput const & contestInput
 ContestResult TeamPool::runContest(ContestInput const & contestInput)
 {
     ContestResult r;
-    //TODO
+    r.resize(contestInput.size());
+
+    if (this->getSharedResults()) {
+        //TODO
+    } else {
+        std::vector<std::future<uint64_t>> futures(contestInput.size());
+        size_t idx = 0;
+        for (const InfInt &singleInput : contestInput) {
+            futures[idx] = this->pool.push(calcCollatz, singleInput);
+            idx++;
+        }
+
+        for (idx = 0; idx < contestInput.size(); ++idx) {
+            r[idx] = futures[idx].get();
+        }
+    }
+
     return r;
 }
 
