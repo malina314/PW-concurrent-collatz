@@ -166,14 +166,20 @@ ContestResult TeamAsync::runContest(ContestInput const & contestInput)
     std::vector<std::future<uint64_t>> futures(contestInput.size());
     size_t idx = 0;
 
+#ifdef STUDENTS
+    auto launch_policy = std::launch::deferred;
+#else
+    auto launch_policy = std::launch::async;
+#endif
+
     if (this->getSharedResults()) {
         for (const InfInt &singleInput : contestInput) {
-            futures[idx] = std::async(calcCollatzX, singleInput, this->getSharedResults());
+            futures[idx] = std::async(launch_policy, calcCollatzX, singleInput, this->getSharedResults());
             idx++;
         }
     } else {
         for (const InfInt &singleInput : contestInput) {
-            futures[idx] = std::async(calcCollatz, singleInput);
+            futures[idx] = std::async(launch_policy, calcCollatz, singleInput);
             idx++;
         }
     }
