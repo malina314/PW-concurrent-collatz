@@ -204,7 +204,51 @@ ContestResult TeamNewProcesses::runContest(ContestInput const & contestInput)
 ContestResult TeamConstProcesses::runContest(ContestInput const & contestInput)
 {
     ContestResult r;
-    //TODO
+    r.resize(contestInput.size());
+    auto size = this->getSize();
+    std::vector<std::vector<InfInt>> tasks_for_processes(size);
+    size_t tasks_idx = 0;
+
+    for (const InfInt &singleInput : contestInput) {
+        tasks_for_processes[tasks_idx % size].push_back(std::ref(singleInput));
+        tasks_idx++;
+    }
+
+    uint64_t *shared_mem = (uint64_t *) mmap(
+            NULL,
+            sizeof (uint64_t) * contestInput.size(),
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED | MAP_ANONYMOUS,
+            -1,
+            0
+    );
+
+    for (int i = 0; i < size; ++i) {
+        switch (fork()) {
+            case -1:
+                std::cerr << "Error in fork()." << std::endl;
+                exit(1);
+            case 0:                                   /* proces potomny */
+                for (int j = 0; j < tasks_for_processes[i].size(); ++j) {
+                    shared_mem[i + j * size] = calcCollatz(tasks_for_processes[i][j]);
+                }
+                exit(0);
+            default:                                  /* proces macierzysty */
+                break;
+        }
+    }
+
+    for (int i = 0; i < size; ++i) {
+        if (wait(nullptr) == -1) {
+            std::cerr << "Error in wait()." << std::endl;
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < contestInput.size(); ++i) {
+        r[i] = shared_mem[i];
+    }
+
     return r;
 }
 
