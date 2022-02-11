@@ -2,12 +2,20 @@
 #include <deque>
 #include <future>
 #include <vector>
+#include <algorithm>
 
 #include "teams.hpp"
 #include "contest.hpp"
 #include "collatz.hpp"
 
 #include "lib/infint/InfInt.h"
+
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 void callCalcCollatz(const InfInt &n, uint64_t &res) {
     res = calcCollatz(n);
@@ -148,7 +156,48 @@ ContestResult TeamPool::runContest(ContestInput const & contestInput)
 ContestResult TeamNewProcesses::runContest(ContestInput const & contestInput)
 {
     ContestResult r;
-    //TODO
+    r.resize(contestInput.size());
+    uint64_t idx = 0;
+    auto size = this->getSize();
+
+    uint64_t *shared_mem = (uint64_t *) mmap(
+            NULL,
+            sizeof (uint64_t) * contestInput.size(),
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED | MAP_ANONYMOUS,
+            -1,
+            0
+    );
+
+    for (int i = 0; i < contestInput.size(); ++i) {
+        switch (fork()) {
+            case -1:
+                std::cerr << "Error in fork()." << std::endl;
+                exit(1);
+            case 0:                                   /* proces potomny */
+                shared_mem[i] = calcCollatz(contestInput[i]);
+                exit(0);
+            default:                                  /* proces macierzysty */
+                if (i >= size) {
+                    if (wait(nullptr) == -1) {
+                        std::cerr << "Error in wait()." << std::endl;
+                        exit(1);
+                    }
+                }
+        }
+    }
+
+    for (int i = 0; i < std::min((size_t) size, (size_t) contestInput.size()); ++i) {
+        if (wait(nullptr) == -1) {
+            std::cerr << "Error in wait()." << std::endl;
+            exit(1);
+        }
+    }
+
+    for (int i = 0; i < contestInput.size(); ++i) {
+        r[i] = shared_mem[i];
+    }
+
     return r;
 }
 
